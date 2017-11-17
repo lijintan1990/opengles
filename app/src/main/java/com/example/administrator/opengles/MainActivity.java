@@ -42,19 +42,16 @@ public class MainActivity extends AppCompatActivity {
         //gl_Position和gl_FragColor都是Shader的内置变量，分别为定点位置和片元颜色
         private static String vertexShaderCode = "attribute vec4 vPosition;\n"+
                 "uniform mat4 vMatrix;\n" +
+                "varying vec4 vColor;\n" +
+                "attribute vec4 aColor;\n" +
                 "void main() {\n"+
                     "gl_Position = vMatrix*vPosition;\n" +
+                    "vColor=aColor;\n" +
                 "}";
-/*
-        private static String fragmentShaderCode = "precision mediump float;" +
-                "void main() {\n" +
-                    "gl_FragColor = vec4(0.5, 0, 0, 1);\n" +
-                "}";
-*/
 
         private final String fragmentShaderCode =
                 "precision mediump float;" +
-                        "uniform vec4 vColor;" +
+                        "varying vec4 vColor;" +
                         "void main() {" +
                         "  gl_FragColor = vColor;" +
                         "}";
@@ -67,8 +64,13 @@ public class MainActivity extends AppCompatActivity {
         };
 
         //颜色数据
-        float color[] = { 1.0f, 1.0f, 1.0f, 1.0f }; //白色
-        FloatBuffer vertexBuffer;
+        //float color[] = { 1.0f, 1.0f, 1.0f, 1.0f }; //白色
+        float color[] = {
+                0.0f, 1.0f, 0.0f, 1.0f ,
+                1.0f, 0.0f, 0.0f, 1.0f,
+                0.0f, 0.0f, 1.0f, 1.0f
+        };
+        FloatBuffer vertexBuffer, colorBuffer;
         private int mProgram;
         private int mPositionHandle;
         private int mColorHandle;
@@ -96,6 +98,14 @@ public class MainActivity extends AppCompatActivity {
             vertexBuffer.put(triangleCoords);
             vertexBuffer.position(0);
 
+            ByteBuffer dd = ByteBuffer.allocateDirect(
+                    color.length * 4);
+            dd.order(ByteOrder.nativeOrder());
+            colorBuffer = dd.asFloatBuffer();
+            colorBuffer.put(color);
+            colorBuffer.position(0);
+
+
             int vertexShader = loadShader(GLES20.GL_VERTEX_SHADER,
                     vertexShaderCode);
             int fragmentShader = loadShader(GLES20.GL_FRAGMENT_SHADER,
@@ -111,20 +121,28 @@ public class MainActivity extends AppCompatActivity {
             GLES20.glLinkProgram(mProgram);
             //将程序加入到OpenGLES2.0环境
             GLES20.glUseProgram(mProgram);
+
             //获取变换矩阵vMatrix成员句柄
             mMatrixHandler= GLES20.glGetUniformLocation(mProgram,"vMatrix");
-            //指定vMatrix的值
-            //GLES20.glUniformMatrix4fv(mMatrixHandler,1,false,mMVPMatrix,0);
             //获取顶点着色器的vPosition成员句柄
             mPositionHandle = GLES20.glGetAttribLocation(mProgram, "vPosition");
             //启用三角形顶点的句柄
             GLES20.glEnableVertexAttribArray(mPositionHandle);
+
             //准备三角形的坐标数据
             GLES20.glVertexAttribPointer(mPositionHandle, COORDS_PER_VERTEX,
                     GLES20.GL_FLOAT, false,
                     vertexStride, vertexBuffer);
             //获取片元着色器的vColor成员的句柄
-            mColorHandle = GLES20.glGetUniformLocation(mProgram, "vColor");
+            //mColorHandle = GLES20.glGetUniformLocation(mProgram, "vColor");
+            //获取片元着色器的vColor成员的句柄
+            mColorHandle = GLES20.glGetAttribLocation(mProgram, "aColor");
+            //设置绘制三角形的颜色
+            GLES20.glEnableVertexAttribArray(mColorHandle);
+            GLES20.glVertexAttribPointer(mColorHandle,4,
+                    GLES20.GL_FLOAT,false,
+                    0,colorBuffer);
+
             //设置绘制三角形的颜色
             GLES20.glUniform4fv(mColorHandle, 1, color, 0);
             Log.d("opengles", "handler:"+String.valueOf(mMatrixHandler)+", "+String.valueOf(mPositionHandle)
@@ -133,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onDrawFrame(GL10 gl10) {
-            Log.d(TAG, "onDrawFrame");
+            //Log.d(TAG, "onDrawFrame");
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);//设置背景色
 
             //绘制三角形
